@@ -1,5 +1,6 @@
 import React from 'react'
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import Navbar from '../Components/Navbar.jsx';
 import Footer from '../Components/Footer.jsx';
 
@@ -210,9 +211,31 @@ function SearchResult() {
   ];
 
   const [filter, setFilter] = useState("All");
+  const [sortBy, setSortBy] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [showRoute, setShowRoute] = useState(null);
+
+  // Mock seat availability and amenities
+  const seatAvailability = ["Available", "Waitlist", "Few Left", "Available", "Available", "Waitlist", "Few Left", "Available", "Available", "Waitlist", "Available", "Few Left", "Available", "Available", "Waitlist", "Available", "Few Left", "Available", "Available", "Waitlist"];
+  const amenities = ["WiFi", "Food", "Charging", "AC", "Clean Toilets"];
+
+  // Find cheapest and fastest train
+  const cheapestTrain = trains.reduce((min, t) => t.price < min.price ? t : min, trains[0]);
+  const fastestTrain = trains.reduce((min, t) => {
+    const getMinutes = (d) => {
+      const m = d.match(/(\d+)h(?:\s*(\d+)m)?/);
+      return m ? parseInt(m[1])*60 + (m[2]?parseInt(m[2]):0) : 9999;
+    };
+    return getMinutes(t.duration) < getMinutes(min.duration) ? t : min;
+  }, trains[0]);
+  // Get user search from location state (React Router)
+  const location = useLocation();
+  const searchParams = location.state || {};
+  const source = searchParams.source || "Delhi";
+  const destination = searchParams.destination || "Mumbai";
+  const date = searchParams.date || "20 Aug 2025";
 
   return (
-
     <>
     <Navbar />
 
@@ -220,20 +243,21 @@ function SearchResult() {
       {/* Search Summary */}
       <div className="max-w-6xl mx-auto px-6 mb-6">
         <h2 className="text-2xl font-bold" style={{color: '#1b3c53'}}>
-          Trains from <span style={{color: '#456882'}}>Delhi</span> → <span style={{color: '#456882'}}>Mumbai</span> on <span style={{color: '#d2c1b6'}}>20 Aug 2025</span>
+          Trains from <span style={{color: '#456882'}}>{source}</span> → <span style={{color: '#456882'}}>{destination}</span> on <span style={{color: '#d2c1b6'}}>{date}</span>
         </h2>
         <p style={{color: '#456882'}} className="mt-2">Showing {trains.length} available trains</p>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-4 gap-6">
+  <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-4 gap-6">
         {/* Filters Sidebar */}
         <aside style={{backgroundColor: '#d2c1b6', color: '#1b3c53'}} className="p-6 shadow rounded-xl">
-          <h3 className="text-lg font-semibold mb-4">Filters</h3>
+          <h3 className="text-lg font-semibold mb-4">Filters & Sorting</h3>
           <label className="block mb-2 font-medium">Train Type</label>
           <select
             onChange={(e) => setFilter(e.target.value)}
             style={{borderColor: '#456882', color: '#1b3c53', backgroundColor: '#f9f3ef'}}
             className="w-full p-2 border rounded mb-4"
+            value={filter}
           >
             <option value="All">All</option>
             <option value="Express">Express</option>
@@ -241,23 +265,46 @@ function SearchResult() {
             <option value="Duronto">Duronto</option>
           </select>
 
-          <label className="block mb-2 font-medium">Departure Time</label>
-          <input type="time" style={{borderColor: '#456882', color: '#1b3c53', backgroundColor: '#f9f3ef'}} className="w-full p-2 border rounded mb-4" />
+          <label className="block mb-2 font-medium">Sort By</label>
+          <select
+            onChange={(e) => setSortBy(e.target.value)}
+            style={{borderColor: '#456882', color: '#1b3c53', backgroundColor: '#f9f3ef'}}
+            className="w-full p-2 border rounded mb-4"
+            value={sortBy}
+          >
+            <option value="">None</option>
+            <option value="price">Price</option>
+            <option value="duration">Duration</option>
+            <option value="depart">Departure Time</option>
+          </select>
 
           <label className="block mb-2 font-medium">Max Price</label>
-          <input type="number" placeholder="Enter max price" style={{borderColor: '#456882', color: '#1b3c53', backgroundColor: '#f9f3ef'}} className="w-full p-2 border rounded mb-4" />
+          <input type="number" placeholder="Enter max price" value={maxPrice} onChange={e=>setMaxPrice(e.target.value)} style={{borderColor: '#456882', color: '#1b3c53', backgroundColor: '#f9f3ef'}} className="w-full p-2 border rounded mb-4" />
         </aside>
 
         {/* Train Results */}
         <main className="md:col-span-3 space-y-6">
-          {trains
-            .filter((train) => filter === "All" || train.type === filter)
-            .map((train, i) => (
+          {(() => {
+            let filtered = trains.filter((train) => (filter === "All" || train.type === filter));
+            if (maxPrice) filtered = filtered.filter(train => train.price <= parseInt(maxPrice));
+            if (sortBy === "price") filtered = filtered.slice().sort((a,b)=>a.price-b.price);
+            if (sortBy === "duration") {
+              const getMinutes = d => { const m = d.match(/(\d+)h(?:\s*(\d+)m)?/); return m ? parseInt(m[1])*60 + (m[2]?parseInt(m[2]):0) : 9999; };
+              filtered = filtered.slice().sort((a,b)=>getMinutes(a.duration)-getMinutes(b.duration));
+            }
+            if (sortBy === "depart") {
+              const getTime = t => { const [h,m,ampm] = t.match(/(\d+):(\d+)\s*(AM|PM)/).slice(1); return (parseInt(h)%12 + (ampm==="PM"?12:0))*60+parseInt(m); };
+              filtered = filtered.slice().sort((a,b)=>getTime(a.depart)-getTime(b.depart));
+            }
+            return filtered.map((train, i) => (
               <div
                 key={i}
-                style={{backgroundColor: '#d2c1b6', color: '#1b3c53'}}
-                className="shadow-md rounded-xl p-6 flex justify-between items-center hover:shadow-lg transition"
+                style={{backgroundColor: '#d2c1b6', color: '#1b3c53', border: train.number===cheapestTrain.number ? '2px solid #4caf50' : train.number===fastestTrain.number ? '2px solid #2196f3' : 'none'}}
+                className="shadow-md rounded-xl p-6 flex justify-between items-center hover:shadow-lg transition relative"
               >
+                {/* Highlight badge */}
+                {train.number===cheapestTrain.number && <span style={{position:'absolute',top:10,right:10,background:'#4caf50',color:'#fff',padding:'2px 8px',borderRadius:'8px',fontSize:'0.8rem'}}>Cheapest</span>}
+                {train.number===fastestTrain.number && <span style={{position:'absolute',top:10,right:train.number===cheapestTrain.number?80:10,background:'#2196f3',color:'#fff',padding:'2px 8px',borderRadius:'8px',fontSize:'0.8rem'}}>Fastest</span>}
                 {/* Train Info */}
                 <div>
                   <h3 className="text-xl font-bold">
@@ -267,6 +314,10 @@ function SearchResult() {
                     {train.depart} → {train.arrive} • {train.duration}
                   </p>
                   <p style={{color: '#1b3c53'}}>{train.class} | {train.type}</p>
+                  <div className="mt-2 flex gap-2 text-xs">
+                    <span style={{background:'#f9f3ef',color:'#456882',padding:'2px 6px',borderRadius:'6px'}}>Seats: {seatAvailability[i%seatAvailability.length]}</span>
+                    {amenities.map((am,j)=>(<span key={j} style={{background:'#f9f3ef',color:'#1b3c53',padding:'2px 6px',borderRadius:'6px'}}>{am}</span>))}
+                  </div>
                 </div>
 
                 {/* Price & Button */}
@@ -275,9 +326,26 @@ function SearchResult() {
                   <button style={{backgroundColor: '#456882', color: '#f9f3ef'}} className="px-4 py-2 rounded-xl shadow hover:bg-[#1b3c53] hover:text-[#d2c1b6] transition">
                     Book Now
                   </button>
+                  <button style={{backgroundColor: '#2196f3', color: '#fff',marginLeft:'8px'}} className="px-3 py-1 rounded-xl shadow hover:bg-[#1b3c53] hover:text-[#d2c1b6] transition" onClick={()=>setShowRoute(train)}>
+                    View Route
+                  </button>
                 </div>
               </div>
-            ))}
+            ));
+          })()}
+          {/* Route Modal */}
+          {showRoute && (
+            <div style={{position:'fixed',top:0,left:0,width:'100vw',height:'100vh',background:'rgba(0,0,0,0.3)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center'}} onClick={()=>setShowRoute(null)}>
+              <div style={{background:'#fff',padding:'32px',borderRadius:'16px',minWidth:'320px',maxWidth:'90vw',color:'#1b3c53',position:'relative'}} onClick={e=>e.stopPropagation()}>
+                <h2 className="text-xl font-bold mb-2">Route for {showRoute.name} ({showRoute.number})</h2>
+                <p>Delhi → Mumbai</p>
+                <p>Departure: {showRoute.depart} | Arrival: {showRoute.arrive}</p>
+                <p>Duration: {showRoute.duration}</p>
+                <div className="mt-4">(Mock route visualization here)</div>
+                <button style={{position:'absolute',top:10,right:10,background:'#d2c1b6',color:'#1b3c53',padding:'2px 8px',borderRadius:'8px'}} onClick={()=>setShowRoute(null)}>Close</button>
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>
