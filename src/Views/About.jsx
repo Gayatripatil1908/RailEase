@@ -52,7 +52,7 @@ const About = () => {
 
       {/* Developer Card */}
       <div className="max-w-2xl mx-auto bg-gradient-to-r from-blue-100 via-blue-50 to-blue-200 rounded-2xl shadow-lg p-8 mb-12 border border-blue-200 flex flex-col md:flex-row items-center animate-fade-in">
-        <img src="https://avatars.githubusercontent.com/u/148010418?v=4" alt="Developer" className="w-24 h-24 rounded-full border-4 border-blue-400 shadow-md mb-4 md:mb-0 md:mr-8" />
+        
         <div>
           <h2 className="text-2xl font-semibold text-blue-800 mb-2 flex items-center"><span className="mr-2">👩‍💻</span>Developer</h2>
           <p className="text-gray-700 leading-relaxed mb-2">
@@ -74,9 +74,8 @@ const About = () => {
         <p className="text-gray-700">
           If you liked RailEase or want to collaborate, feel free to connect with me on LinkedIn or GitHub.  
           <br />
-          <span className="italic text-gray-600">
-            (You can add your actual links here in future.)
-          </span>
+          
+          Thank you for visiting RailEase!
         </p>
       </div>
       <Footer />
